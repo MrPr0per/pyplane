@@ -6,7 +6,6 @@ from enum import Enum, auto
 
 # TODO: отображение цифр по всей длине
 # TODO: отображение цифр даже если оси за пределами экрана
-# TODO: хранить цифры десятками: 1 2 5, 10 20 50, 100 200 500
 
 class Plane:
     def __init__(self, sc: pygame.Surface, scale=100, dx=0, dy=0):
@@ -19,20 +18,19 @@ class Plane:
         self.center = np.array([self.sc_width / 2 - dx * scale,
                                 self.sc_height / 2 - dy * scale])  # координаты начала координат на sc [px]
 
-        # self.n_mul = 0  # количество уможений line_scale на 5 (для корректной нумерации сетки)
-        # self.line_scale = self.scale  # пикселей на расстояние между линиями сетки в еденицах плоскости
-        # while True:
-        #     if self.line_scale < 20:
-        #         self.line_scale *= 5
-        #         self.n_mul += 1
-        #     elif self.line_scale > self.sc_height / 2:
-        #         self.line_scale /= 5
-        #         self.n_mul -= 1
-        #     else:
-        #         break
+        self.grid_base = 10  # во сколько раз увеличивается/уменьшается минимальное деление сетки
+        min_grid_gap = 50
+        self.max_grid_gap = min_grid_gap * self.grid_base
+
+        # TODO: умножение не на 10, а *5 *2 *5 *2 *5 ... + 2 мелкие сетки на 0.2|0.5 и на 0.1
 
         self.font_size = max(20, int(self.sc_height / 40))
         self.font = pygame.font.Font(None, self.font_size)
+
+        self.color_of_background = [0] * 3
+        self.color_of_cross = [255] * 3
+        self.color_of_main_grid = [75] * 3
+        self.color_of_small_grid = [25] * 3
 
     def scale(self, dimetion: int = None):
         """количество пикселей на еденицу плоскости"""
@@ -44,6 +42,21 @@ class Plane:
                                  f'так что нужно явно указать нужное измерение')
 
         return self.scale_speed ** self.scale_deg[dimetion]
+
+    def grid_division(self, dimetion: int = None):
+        """минимальное деление главной сетки (в еденицах площади)"""
+        # https://www.desmos.com/calculator/hmlu3lqpyp
+        return self.grid_base ** (
+            - math.floor(
+                math.log(
+                    self.scale(dimetion) / self.max_grid_gap,
+                    self.grid_base
+                ) + 1)
+        )
+
+    def grid_gap(self, dimention: int = None):
+        """кол-во пикселей между линиями главной сетки"""
+        return self.scale(dimention) * self.grid_division(dimention)
 
     def process_events(self, events, keys):
         for event in events:
@@ -72,8 +85,6 @@ class Plane:
                 if ctrl_pressed and event.button == pygame.BUTTON_MIDDLE:
                     self.scale_deg[1] = self.scale_deg[0]
 
-                # self.line_scale /= self.scale_speed
-
                 no_move_point_crd_2 = self.convet_to_plane_crd(no_move_point_sc)
 
                 # TODO: переписать на векторы
@@ -87,27 +98,30 @@ class Plane:
             self.center[0] = self.center[0] + delta[0]
             self.center[1] = self.center[1] + delta[1]
 
-        # # корректировка масштаба линий сетки
-        # if self.line_scale < 20:
-        #     self.line_scale *= 5
-        #     self.n_mul += 1
-        # if self.line_scale > self.sc_height / 2:
-        #     self.line_scale /= 5
-        #     self.n_mul -= 1
+    def draw(self, without_numbers=False):
+        self.sc.fill(self.color_of_background)
 
-    def draw_grid(self, line_scale, color='#555555'):
-        i = self.center[0] % line_scale
+        self.draw_grid((self.grid_division(0) / self.grid_base, self.grid_division(1) / self.grid_base),
+                       self.color_of_small_grid)
+        self.draw_grid((self.grid_division(0), self.grid_division(1)), self.color_of_main_grid)
+        self.draw_cross()
+        # if not without_numbers:
+        #     self.draw_numbers()
+
+    def draw_grid(self, grid_division: tuple[float, float], color):
+        grid_gap = (grid_division[0] * self.scale(0), grid_division[1] * self.scale(1))
+        i = self.center[0] % grid_gap[0]
         while i < self.sc_width:
             pygame.draw.line(self.sc, color, (i, 0), (i, self.sc_height))
-            i += line_scale
-        i = self.center[1] % line_scale
+            i += grid_gap[0]
+        i = self.center[1] % grid_gap[1]
         while i < self.sc_width:
             pygame.draw.line(self.sc, color, (0, i), (self.sc_width, i))
-            i += line_scale
+            i += grid_gap[1]
 
-    def draw_cross(self, color='#ffffff'):
-        pygame.draw.line(self.sc, color, (0, self.center[1]), (self.sc_width, self.center[1]), 1)
-        pygame.draw.line(self.sc, color, (self.center[0], self.sc_height), (self.center[0], 0), 1)
+    def draw_cross(self):
+        pygame.draw.line(self.sc, self.color_of_cross, (0, self.center[1]), (self.sc_width, self.center[1]), 1)
+        pygame.draw.line(self.sc, self.color_of_cross, (self.center[0], self.sc_height), (self.center[0], 0), 1)
 
     def draw_numbers(self):
         # отрисовка значений
@@ -125,16 +139,6 @@ class Plane:
         self.sc.blit(text_minus1, (x_m1 + 5, y_0 + 5))
         self.sc.blit(text_minus1, (x_0 + 5, y_m1 + 5))
         self.sc.blit(text_0, (x_0 + 5, y_0 + 5))
-
-    def draw(self, without_numbers=False):
-        self.sc.fill('#000000')
-
-        # if self.n_mul > 0:
-        #     self.draw_grid(self.line_scale / 5, color='#222222')  # отрисовываем неяркую сетку поменьше
-        # self.draw_grid(self.line_scale)
-        self.draw_cross()
-        # if not without_numbers:
-        #     self.draw_numbers()
 
     def convet_to_sc_crd(self, crd):
         """ковертирует координату точки на плоскости в координату соответсвующего пикселя на экране"""

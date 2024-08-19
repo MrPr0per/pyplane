@@ -59,6 +59,8 @@ def main():
             f'{pl.scale(0)=}',
             f'{pl.scale(1)=}',
             f'{pl.scale_deg=}',
+            f'{pl.grid_division(0)=}',
+            f'{pl.grid_division(1)=}',
         ])
 
         pygame.display.update()
