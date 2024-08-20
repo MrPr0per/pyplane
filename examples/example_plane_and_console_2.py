@@ -9,16 +9,16 @@ from console import Console
 # особенности работы с плоскостью и консолью выделены восклицательным знаком (!)
 
 
-def draw_lissajous_curve(pl: Plane, freq: tuple[int, int], offset=0.0):
+def draw_lissajous_curve(pl: Plane, freq: tuple[int, int], offset=(0.0, 0.0), color=(0, 255, 0)):
     points = []
     for i in range(360):
         rad = i / 180 * math.pi
-        x = math.cos(rad * freq[0] + offset)
-        y = math.sin(rad * freq[1])
+        x = math.cos(rad * freq[0] + offset[0])
+        y = math.sin(rad * freq[1] + offset[1])
         points.append((x, y))
 
     sc_points = [pl.convet_to_sc_crd(p) for p in points]
-    pygame.draw.lines(pl.sc, (0, 255, 0), True, sc_points)
+    pygame.draw.lines(pl.sc, color, True, sc_points)
     # pygame.draw.circle(pl.sc, (255, 0, 0), sc_points[0], 100)
 
 
@@ -52,7 +52,9 @@ def main():
 
         # теперь отрисовываем свои штуки
         t = time.time() - t0
-        draw_lissajous_curve(pl, (2, 3), t)
+        # draw_lissajous_curve(pl, (2, 3), (math.cos(t), math.sin(t)))
+        draw_lissajous_curve(pl, (2, 3), (0, t), (0, 255, 0))
+        # draw_lissajous_curve(pl, (2, 3), (t, 0), (255, 0, 0))
 
         # !сверху отрисовываем консоль
         console.draw_lines(sc, [

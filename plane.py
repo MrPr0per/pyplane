@@ -1,3 +1,5 @@
+import typing
+
 import pygame
 import math
 import numpy as np
@@ -26,30 +28,41 @@ class Plane:
 
         self.font_size = max(20, int(self.sc_height / 40))
         self.font = pygame.font.Font(None, self.font_size)
+        self.line_spacing = 1.2
 
         self.color_of_background = [0] * 3
         self.color_of_cross = [255] * 3
         self.color_of_main_grid = [75] * 3
-        self.color_of_small_grid = [25] * 3
+        self.color_of_small_grid = [30] * 3
+        self.color_of_text = [120] * 3
 
-    def scale(self, dimetion: int = None):
+    def scale(self, dimention: int | tuple[int, int] = None):
         """количество пикселей на еденицу плоскости"""
-        if dimetion is None:
+
+        if isinstance(dimention, typing.Collection):
+            return [self.scale(d) for d in dimention]
+
+        if dimention is None:
             if np.all(self.scale_deg == self.scale_deg[0]):
-                dimetion = 0
+                dimention = 0
             else:
                 raise ValueError(f'сетка имеет разный масштаб по разным осям: {self.scale_deg=}, '
                                  f'так что нужно явно указать нужное измерение')
 
-        return self.scale_speed ** self.scale_deg[dimetion]
+        return self.scale_speed ** self.scale_deg[dimention]
 
-    def grid_division(self, dimetion: int = None):
+    def grid_division(self, dimetion: int | tuple[int, int] = None):
         """минимальное деление главной сетки (в еденицах площади)"""
         # https://www.desmos.com/calculator/hmlu3lqpyp
+
+        scale = self.scale(dimetion)
+        if isinstance(scale, typing.Collection):
+            return [self.grid_division(d) for d in dimetion]
+
         return self.grid_base ** (
             - math.floor(
                 math.log(
-                    self.scale(dimetion) / self.max_grid_gap,
+                    scale / self.max_grid_gap,
                     self.grid_base
                 ) + 1)
         )
@@ -101,12 +114,13 @@ class Plane:
     def draw(self, without_numbers=False):
         self.sc.fill(self.color_of_background)
 
-        self.draw_grid((self.grid_division(0) / self.grid_base, self.grid_division(1) / self.grid_base),
+        self.draw_grid((self.grid_division(0) / self.grid_base, 
+                        self.grid_division(1) / self.grid_base),
                        self.color_of_small_grid)
-        self.draw_grid((self.grid_division(0), self.grid_division(1)), self.color_of_main_grid)
+        self.draw_grid(self.grid_division((0, 1)), self.color_of_main_grid)
         self.draw_cross()
-        # if not without_numbers:
-        #     self.draw_numbers()
+        if not without_numbers:
+            self.draw_numbers()
 
     def draw_grid(self, grid_division: tuple[float, float], color):
         grid_gap = (grid_division[0] * self.scale(0), grid_division[1] * self.scale(1))
@@ -120,25 +134,64 @@ class Plane:
             i += grid_gap[1]
 
     def draw_cross(self):
-        pygame.draw.line(self.sc, self.color_of_cross, (0, self.center[1]), (self.sc_width, self.center[1]), 1)
-        pygame.draw.line(self.sc, self.color_of_cross, (self.center[0], self.sc_height), (self.center[0], 0), 1)
+        if 0 <= self.center[0] <= self.sc_width:
+            pygame.draw.line(self.sc, self.color_of_cross, (self.center[0], self.sc_height), (self.center[0], 0), 1)
+        if 0 <= self.center[1] <= self.sc_height:
+            pygame.draw.line(self.sc, self.color_of_cross, (0, self.center[1]), (self.sc_width, self.center[1]), 1)
 
     def draw_numbers(self):
-        # отрисовка значений
-        n_units = 5 ** self.n_mul
-        text_plus1 = self.font.render(str(n_units), True, '#777777')
-        text_0 = self.font.render(str(0), True, '#777777')
-        text_minus1 = self.font.render(str(-n_units), True, '#777777')
+        grid_division = self.grid_division((0, 1))
+        grid_gap = (grid_division[0] * self.scale(0), grid_division[1] * self.scale(1))
 
-        x_m1, y_m1 = self.convet_to_sc_crd((-n_units, -n_units))
-        x_0, y_0 = self.convet_to_sc_crd((0, 0))
-        x_p1, y_p1 = self.convet_to_sc_crd((n_units, n_units))
+        x0 = self.center[0] % grid_gap[0]
+        n0 = math.ceil(-self.center[0] / grid_gap[0]) * grid_division[0]
+        for i in range(math.ceil((self.sc_width - x0) / grid_gap[0])):
+            x = x0 + i * grid_gap[0]
+            n = n0 + i * grid_division[0]
+            # if n % 1 == 0: n = int(n)
+            # else: n = round(n, 8)
 
-        self.sc.blit(text_plus1, (x_p1 + 5, y_0 + 5))
-        self.sc.blit(text_plus1, (x_0 + 5, y_p1 + 5))
-        self.sc.blit(text_minus1, (x_m1 + 5, y_0 + 5))
-        self.sc.blit(text_minus1, (x_0 + 5, y_m1 + 5))
-        self.sc.blit(text_0, (x_0 + 5, y_0 + 5))
+            # if grid_division[0] > 10:
+            #     str_n = f'{n:.3g}'
+            # else:
+            #     str_n = f'{n:g}'
+
+            str_n = f'{n:g}'
+
+            render = self.font.render(str_n, True, self.color_of_text)
+            render_height_with_spacing = render.get_height() * self.line_spacing
+            margin = render_height_with_spacing - render.get_height()
+            render_width_with_spacing = render.get_width() + margin * 2
+
+            topleft_x = x - render.get_width() / 2
+            if n == 0: topleft_x = x - render_width_with_spacing
+            topleft_y = self.center[1] + margin
+            topleft_y = min(topleft_y, self.sc_height - render_height_with_spacing)
+            topleft_y = max(topleft_y, margin)
+
+            self.sc.blit(render, (topleft_x, topleft_y))
+
+        y0 = self.center[1] % grid_gap[1]
+        n0 = math.ceil(-self.center[1] / grid_gap[1]) * grid_division[1]
+        for i in range(math.ceil((self.sc_height - y0) / grid_gap[1])):
+            y = y0 + i * grid_gap[1]
+            n = n0 + i * grid_division[1]
+            n = -n
+            if n == 0: continue
+
+            str_n = f'{n:g}'
+
+            render = self.font.render(str_n, True, self.color_of_text)
+            render_height_with_spacing = render.get_height() * self.line_spacing
+            margin = render_height_with_spacing - render.get_height()
+            render_width_with_spacing = render.get_width() + margin * 2
+
+            topleft_y = y - render.get_height() / 2
+            topleft_x = self.center[0] - render_width_with_spacing
+            topleft_x = min(topleft_x, self.sc_width - render_height_with_spacing)
+            topleft_x = max(topleft_x, margin)
+
+            self.sc.blit(render, (topleft_x, topleft_y))
 
     def convet_to_sc_crd(self, crd):
         """ковертирует координату точки на плоскости в координату соответсвующего пикселя на экране"""
