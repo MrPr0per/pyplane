@@ -75,7 +75,7 @@ FPS = 120
 clock = pygame.time.Clock()
 
 # !нужно создать объект плоскости и консоли
-pl = Plane(sc, 1 / 1000)
+pl = Plane(sc, 1 / 1_000_000)
 console = Console()
 
 # параметры (можно менять)
@@ -91,13 +91,13 @@ stoped_time = 0  # на каком значении остановилось в�
 font_size = 20
 font = pygame.font.Font(None, font_size)
 # 1 клетка поля = 1 км
-sun_radius = 696_340 / 1000
-earth_radius = 6_371 / 1000
-moon_radius = 1_737 / 1000
-mars_radius = 3_389 / 1000
-d_from_sun_to_earth = 147_000_000 / 1000
-d_from_sun_to_mars = 228_000_000 / 1000
-d_from_earth_to_moon = 384_400 / 1000
+sun_radius = 696_340
+earth_radius = 6_371
+moon_radius = 1_737
+mars_radius = 3_389
+d_from_sun_to_earth = 147_000_000
+d_from_sun_to_mars = 228_000_000
+d_from_earth_to_moon = 384_400
 while True:
     # нужно сохранить pygame.event.get() в отдельную переменную,
     # тк иначе не будет работать управление плоскостью,
