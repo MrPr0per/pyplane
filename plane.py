@@ -1,13 +1,8 @@
 import typing
-
 import pygame
 import math
 import numpy as np
-from enum import Enum, auto
 
-
-# TODO: отображение цифр по всей длине
-# TODO: отображение цифр даже если оси за пределами экрана
 
 class Plane:
     def __init__(self, sc: pygame.Surface, scale=100, dx=0, dy=0):
@@ -24,7 +19,8 @@ class Plane:
         min_grid_gap = 50
         self.max_grid_gap = min_grid_gap * self.grid_base
 
-        # TODO: умножение не на 10, а *5 *2 *5 *2 *5 ... + 2 мелкие сетки на 0.2|0.5 и на 0.1
+        # TODO: вместо *10 *10 ... : *5 *2 *5 *2 *5 ... 
+        # TODO: + 2 мелкие сетки на 0.2|0.5 и на 0.1
 
         self.font_size = max(20, int(self.sc_height / 40))
         self.font = pygame.font.Font(None, self.font_size)
@@ -100,25 +96,24 @@ class Plane:
 
                 no_move_point_crd_2 = self.convet_to_plane_crd(no_move_point_sc)
 
-                # TODO: переписать на векторы
                 self.center[0] = self.center[0] - (no_move_point_crd[0] - no_move_point_crd_2[0]) * self.scale(0)
                 self.center[1] = self.center[1] + (no_move_point_crd[1] - no_move_point_crd_2[1]) * self.scale(1)
 
-        # TODO: переписать на векторы
         # перетаскивание мышкой
         delta = pygame.mouse.get_rel()
         if pygame.mouse.get_pressed()[0]:
-            self.center[0] = self.center[0] + delta[0]
-            self.center[1] = self.center[1] + delta[1]
+            self.center += delta
 
     def draw(self, without_numbers=False):
         self.sc.fill(self.color_of_background)
 
-        self.draw_grid((self.grid_division(0) / self.grid_base, 
+        self.draw_grid((self.grid_division(0) / self.grid_base,
                         self.grid_division(1) / self.grid_base),
                        self.color_of_small_grid)
         self.draw_grid(self.grid_division((0, 1)), self.color_of_main_grid)
+
         self.draw_cross()
+
         if not without_numbers:
             self.draw_numbers()
 
@@ -207,7 +202,7 @@ class Plane:
         return -1 * y * self.scale(1) + self.center[1]
 
     def convert_pl_d_to_sc(self, d):
-        """ковертирует расстояние на плоскости в расстояние на экране"""
+        """ковертирует расстояние на плоскости в расстояние на экране (только при квадратной сетке)"""
         return d * self.scale()
 
     def convet_to_plane_crd(self, crd):
